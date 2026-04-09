@@ -1,0 +1,16 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.streamlit/
+
+reports/out/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
