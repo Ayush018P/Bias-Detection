@@ -11,10 +11,14 @@ def mitigate_data(X: pd.DataFrame, protected_cols: list) -> pd.DataFrame:
     if not protected_cols:
         return X.copy()
         
+    # Safety check: ignore any protected columns that might have been removed (e.g. target labels)
+    valid_protected = [c for c in protected_cols if c in X.columns]
+    if not valid_protected:
+        return X.copy()
+        
+    # Extract sensitive features and remaining features
     X_cr_df = X.copy()
-    
-    # Extract and center sensitive features
-    S = X[protected_cols].values.astype(float)
+    S = X[valid_protected].values.astype(float)
     S_centered = S - S.mean(axis=0)
     
     for col in X.columns:

@@ -26,7 +26,8 @@ def render_sidebar():
                  try:
                      df_temp = pd.read_csv(uploaded_file)
                      target_col = st.selectbox("Select Target Label (To Predict)", df_temp.columns)
-                     prot_cols = st.multiselect("Select Protected Attributes (To Audit)", df_temp.columns)
+                     available_prot_cols = [c for c in df_temp.columns if c != target_col]
+                     prot_cols = st.multiselect("Select Protected Attributes (To Audit)", available_prot_cols)
                  except Exception as e:
                      st.error(f"Error parsing CSV: {e}")
                      
