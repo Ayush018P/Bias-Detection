@@ -78,12 +78,20 @@ if st.button("Run Comprehensive Bias Audit", type="primary"):
 if "bias_results" in st.session_state and st.session_state.bias_results is not None and not st.session_state.bias_results.empty:
     df_b = st.session_state.bias_results
     
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4, c5 = st.columns(5)
     max_bias_val = df_b['DPD'].abs().max() * 100
-    c1.metric("Highest Bias Index", f"{max_bias_val:.1f}%")
-    c2.metric("Worst EOD", f"{df_b['EOD'].max():.3f}")
+    c1.metric("Selection Gap (DPD)", f"{max_bias_val:.1f}%", help="How much less likely this group is to be approved compared to average.")
+    c2.metric("Accuracy Bias (EOD)", f"{df_b['EOD'].max():.3f}", help="Does the model make more errors for this group compared to others?")
+    
+    # New metrics (if available in results, fallback to 0)
+    fnr_max = df_b['FNR_Disparity'].abs().max() if 'FNR_Disparity' in df_b.columns else 0
+    ppv_max = df_b['PPV_Gap'].abs().max() if 'PPV_Gap' in df_b.columns else 0
+    
+    c3.metric("Unfair Rejection (FNR)", f"{fnr_max:.3f}", help="Are qualified people in this group unfairly rejected more often?")
+    c4.metric("Precision Gap (PPV)", f"{ppv_max:.3f}", help="Difference in how often the model's positive predictions are actually correct for this group.")
+    
     cr_count = len(df_b[df_b['Priority'] == 'Critical'])
-    c3.metric("Critical Findings", cr_count, delta="!" if cr_count > 0 else "")
+    c5.metric("Critical Findings", cr_count, delta="!" if cr_count > 0 else "", help="Number of subgroups requiring immediate mitigation.")
     
     st.subheader("Ranked Disparities (By Severity)")
     df_b['DPD (%)'] = (df_b['DPD'] * 100).round(2)
@@ -96,8 +104,23 @@ if "bias_results" in st.session_state and st.session_state.bias_results is not N
         elif val == 'Medium': color = 'lightblue'
         return f'color: {color}; font-weight: bold'
         
-    display_df = filtered_df[['Rank', 'Type', 'Subgroup Name', 'n', 'DPD (%)', 'DIR', 'EOD', 'p_val_corrected', 'BSS', 'Priority']].copy()
-    st.dataframe(display_df.style.map(color_tier, subset=['Priority']).background_gradient(cmap='Reds', subset=['BSS']), use_container_width=True)
+    # Ensure new columns exist
+    for col in ['FNR_Disparity', 'PPV_Gap', 'Calibration_Gap']:
+        if col not in filtered_df.columns:
+            filtered_df[col] = 0.0
+            
+    display_df = filtered_df[['Rank', 'Type', 'Subgroup Name', 'n', 'DPD (%)', 'DIR', 'EOD', 'FNR_Disparity', 'PPV_Gap', 'Priority']].copy()
+    
+    # Rename columns to Plain English with Acronyms
+    display_df = display_df.rename(columns={
+        "DPD (%)": "Selection Gap (DPD %)",
+        "DIR": "Impact Ratio (DIR)",
+        "EOD": "Accuracy Bias (EOD)",
+        "FNR_Disparity": "Unfair Rejection (FNR Gap)",
+        "PPV_Gap": "Precision Gap (PPV Gap)",
+    })
+    
+    st.dataframe(display_df.style.map(color_tier, subset=['Priority']), use_container_width=True)
     
     st.subheader("Severity Heatmap")
     if len(df_b) > 1:
