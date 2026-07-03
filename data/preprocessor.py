@@ -49,9 +49,14 @@ def preprocess_data(X: pd.DataFrame, y: pd.Series, test_size=0.2, random_state=4
     y_processed = pd.Series(y_proc_vals, index=y.index, name=getattr(y, 'name', 'target'))
     
     # Train test split (stratified)
-    stratify_arr = np.array(y_processed)
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_processed, y_processed, test_size=test_size, random_state=random_state, stratify=stratify_arr
-    )
+    try:
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_processed, y_processed, test_size=test_size, random_state=random_state, stratify=y_processed
+        )
+    except ValueError:
+        # Fallback if a class has fewer than 2 members and cannot be stratified
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_processed, y_processed, test_size=test_size, random_state=random_state, stratify=None
+        )
     
     return X_train, X_test, y_train, y_test, X_processed
