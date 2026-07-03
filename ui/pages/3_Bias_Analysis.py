@@ -1,0 +1,112 @@
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import sys
+import json
+from pathlib import Path
+
+# Fix sys path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+
+from ui.shared_sidebar import render_sidebar
+from bias.detector import discover_subgroups
+from bias.explainer import generate_eli5_summary
+from db.database import SessionLocal
+from db.models import AuditHistory
+
+st.set_page_config(page_title="Bias Analysis", layout="wide")
+
+if not st.session_state.get("authenticated"):
+    st.error("Please log in from the Home page first.")
+    st.stop()
+
+render_sidebar()
+
+st.header("⚖️ Core Bias Analysis")
+
+if "data" not in st.session_state or not st.session_state.data:
+    st.warning("Please load a dataset from the sidebar to begin.")
+    st.stop()
+
+if 'models' not in st.session_state or not st.session_state.models:
+    st.warning("Train models first in the 'Model Training' tab.")
+    st.stop()
+    
+raw = st.session_state.data
+X_tr, X_te, y_tr, y_te, X_proc = st.session_state.pp_data
+
+col1, col2, col3 = st.columns(3)
+model_choice = col1.selectbox("Select Model to Audit", list(st.session_state.models.keys()))
+threshold_dpd = col2.slider("DPD Significance Threshold", 0.05, 0.30, 0.10, 0.01)
+min_bias_pct = col3.slider("Filter by Min Bias (%)", 0, 100, 0, 5)
+
+if st.button("Run Comprehensive Bias Audit", type="primary"):
+    with st.spinner("Discovering subgroups & computing stats..."):
+        model = st.session_state.models[model_choice]
+        y_pred = model.predict(X_te)
+        
+        X_te_raw = raw['X'].loc[X_te.index]
+        
+        res_df = discover_subgroups(X_te_raw, y_te, y_pred, model, raw['protected_cols'], threshold_dpd)
+        st.session_state.bias_results = res_df
+        
+        # --- SAVE TO DATABASE ---
+        if not res_df.empty:
+            cr_count = len(res_df[res_df['Priority'] == 'Critical'])
+            total_bss = res_df['BSS'].sum()
+            max_bias_pct = res_df['DPD'].abs().max() * 100
+            clean_df = res_df.replace({pd.NA: None, float('nan'): None})
+            
+            db = SessionLocal()
+            audit_record = AuditHistory(
+                user_id=st.session_state["user_id"],
+                dataset_name=raw['dataset_name'],
+                model_name=model_choice,
+                critical_findings_count=cr_count,
+                total_bss=total_bss,
+                max_bias_pct=max_bias_pct,
+                results_json=clean_df.to_json(orient="records")
+            )
+            db.add(audit_record)
+            db.commit()
+            db.close()
+            st.toast("Audit saved to History!")
+            
+    st.success("Audit complete.")
+
+if "bias_results" in st.session_state and st.session_state.bias_results is not None and not st.session_state.bias_results.empty:
+    df_b = st.session_state.bias_results
+    
+    c1, c2, c3 = st.columns(3)
+    max_bias_val = df_b['DPD'].abs().max() * 100
+    c1.metric("Highest Bias Index", f"{max_bias_val:.1f}%")
+    c2.metric("Worst EOD", f"{df_b['EOD'].max():.3f}")
+    cr_count = len(df_b[df_b['Priority'] == 'Critical'])
+    c3.metric("Critical Findings", cr_count, delta="!" if cr_count > 0 else "")
+    
+    st.subheader("Ranked Disparities (By Severity)")
+    df_b['DPD (%)'] = (df_b['DPD'] * 100).round(2)
+    filtered_df = df_b[df_b['DPD'].abs() * 100 >= min_bias_pct].copy()
+    
+    def color_tier(val):
+        color = 'green'
+        if val == 'Critical': color = 'red'
+        elif val == 'High': color = 'orange'
+        elif val == 'Medium': color = 'lightblue'
+        return f'color: {color}; font-weight: bold'
+        
+    display_df = filtered_df[['Rank', 'Type', 'Subgroup Name', 'n', 'DPD (%)', 'DIR', 'EOD', 'p_val_corrected', 'BSS', 'Priority']].copy()
+    st.dataframe(display_df.style.map(color_tier, subset=['Priority']).background_gradient(cmap='Reds', subset=['BSS']), use_container_width=True)
+    
+    st.subheader("Severity Heatmap")
+    if len(df_b) > 1:
+        fig = px.treemap(df_b, path=[px.Constant("All Subgroups"), 'Type', 'Subgroup Name'], values='BSS',
+                        color='Priority', color_discrete_map={'Critical':'darkred', 'High':'orange', 'Medium':'lightblue', 'Low':'gray'},
+                        title="Bias Severity Composition")
+        st.plotly_chart(fig, use_container_width=True)
+        
+        if st.button("Summarize with AI", type="primary"):
+            with st.spinner("Extracting insights..."):
+                summary = generate_eli5_summary(df_b)
+            st.info(summary)

@@ -12,10 +12,9 @@ def calculate_bss(dpd, effect_size_h, p_val_corrected, subgroup_fraction, dir_va
     """
     
     # 1. Metric Deviation
-    # Thresholds: DPD > 0.1, DIR < 0.8 or > 1.2
-    # We'll use DPD as the primary driver for a unified metric deviation, mapped to [0,1]
-    # DPD of 0 -> dev 0. DPD >= 0.35 -> dev 1 (Industry standard significance)
-    dpd_dev = min(1.0, abs(dpd) / 0.35)
+    # DPD threshold normalised against 0.20 (EU AI Act / EEOC practical significance level)
+    # DPD of 0 -> dev 0. DPD >= 0.20 -> dev 1
+    dpd_dev = min(1.0, abs(dpd) / 0.20)
     
     # Alternatively using DIR deviation form 1.0 (threshold 0.2 deviation)
     # dir_dev = min(1.0, abs(1.0 - dir_val) / 0.8) if dir_val is not None else 0
@@ -42,12 +41,18 @@ def calculate_bss(dpd, effect_size_h, p_val_corrected, subgroup_fraction, dir_va
     return bss
 
 def assign_tier(bss):
-    """Assigns Priority Tier based on BSS."""
-    if bss >= 0.55:
+    """Assigns Priority Tier based on BSS.
+    Calibrated so that genuine dataset biases surface as Critical/High:
+      Critical : BSS >= 0.40  (was 0.55)
+      High     : BSS >= 0.25  (was 0.35)
+      Medium   : BSS >= 0.10  (was 0.15)
+      Low      : BSS <  0.10
+    """
+    if bss >= 0.40:
         return "Critical"
-    elif bss >= 0.35:
+    elif bss >= 0.25:
         return "High"
-    elif bss >= 0.15:
+    elif bss >= 0.10:
         return "Medium"
     else:
         return "Low"

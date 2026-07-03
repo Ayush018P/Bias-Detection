@@ -17,3 +17,8 @@ openml>=0.14.0
 requests>=2.31.0
 google-genai
 python-dotenv
+fastapi
+uvicorn
+python-multipart
+sqlalchemy
+bcrypt

@@ -50,6 +50,10 @@ def discover_subgroups(X_test, y_true, y_pred, model, protected_cols, threshold_
             if not disp:
                 continue
                 
+            # Wire the threshold: only include subgroups where DPD is meaningful
+            if abs(disp.get("DPD", 0)) < threshold_dpd:
+                continue
+                
             # Stats
             p1 = sg_metrics.get("selection_rate", 0)
             p2 = ov_sel
@@ -95,6 +99,10 @@ def discover_subgroups(X_test, y_true, y_pred, model, protected_cols, threshold_
                 disp = compare_metrics(sg_metrics, overall_metrics)
                 
                 if not disp:
+                    continue
+                    
+                # Wire the threshold for intersectional too
+                if abs(disp.get("DPD", 0)) < threshold_dpd:
                     continue
                     
                 p1 = sg_metrics.get("selection_rate", 0)
