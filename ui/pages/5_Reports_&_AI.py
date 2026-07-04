@@ -64,9 +64,10 @@ with tab2:
         st.warning("No AI API keys found in .env (GEMINI_API_KEY or GROQ_API_KEY). Please add at least one to use the AI Assistant.")
     else:
         provider = "groq" if groq_key else "gemini"
+        active_key = groq_key if groq_key else gemini_key
         st.caption(f"Using **{provider.upper()}** as AI Provider")
         
-        assistant = SABPFAssistant(provider=provider)
+        assistant = SABPFAssistant(api_key=active_key, provider=provider)
         
         if 'chat_history' not in st.session_state: 
             st.session_state.chat_history = []
