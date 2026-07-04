@@ -1,207 +1,72 @@
 # SABPF: Scalable Automated Bias Prioritization Framework
 
-SABPF is an end-to-end machine learning fairness auditing project built with Python and Streamlit. It trains multiple classification models on real-world tabular datasets, detects demographic and intersectional bias across subgroups, validates disparities with statistical testing, ranks findings by severity, and exports governance-ready reports.
+SABPF is an end-to-end framework for auditing and mitigating algorithmic bias in machine learning models. 
 
-This project is designed for academic demonstration, fairness analysis workflows, and applied responsible AI experimentation.
+When building predictive models, it is incredibly easy to accidentally learn and amplify historical biases present in the training data. This tool provides a complete pipeline to detect demographic disparities, validate them statistically, rank them by severity, and mathematically mitigate them from the dataset or model.
+
+This project was built to make algorithmic fairness accessible, providing clear, mathematically sound evidence of bias without requiring a background in fairness research.
 
 ## Core Features
 
-- Train multiple machine learning models on benchmark or custom tabular datasets.
-- Audit model predictions for subgroup and intersectional bias.
-- Compute fairness metrics such as Demographic Parity Difference, Disparate Impact Ratio, and Equal Opportunity Difference.
-- Apply statistical validation using p-values, effect sizes, confidence intervals, and false discovery rate correction.
-- Rank findings with a Bias Severity Score (BSS) so the most important issues are reviewed first.
-- Explore results in an interactive Streamlit dashboard.
-- Export PDF and JSON governance artifacts.
-- Use an optional AI assistant backed by environment-based API keys.
+*   **Interactive What-If Simulator:** A tool designed to prove algorithmic bias to non-technical stakeholders. You can load a real person's profile from your dataset, flip a protected attribute (e.g., changing gender from Male to Female), and instantly see how the model's prediction changes.
+*   **Comprehensive Bias Discovery:** Calculates standard fairness metrics including Demographic Parity Difference (DPD), Disparate Impact Ratio (DIR), and Equal Opportunity Difference (EOD) across dozens of single and intersectional subgroups.
+*   **Bias Severity Score (BSS):** A proprietary ranking algorithm that scores subgroups based on raw disparity, statistical effect size, population impact, and False Discovery Rate (FDR) corrected p-values. This prevents "alert fatigue" by surfacing only the most critical biases.
+*   **Active Mitigation Engines:** Includes a Correlation Remover to mathematically scrub linear bias from your training data, and a Threshold Optimizer to dynamically adjust your model's decision boundaries post-training.
+*   **LLM Context Integration:** An optional built-in assistant (supporting Groq and Gemini) that reads your specific dataset findings and provides context-aware guidance on interpreting the results.
 
-## Supported Workflows
+## Usage & Workflows
 
-SABPF supports two main ways of working:
+The framework is built as an interactive Streamlit application. A typical workflow involves:
 
-1. Built-in fairness benchmark datasets.
-2. Custom CSV upload where the user selects the target column and protected attributes.
+1.  **Data Ingestion:** Load a built-in fairness benchmark (Adult Income, COMPAS, German Credit) or upload your own custom CSV. The system dynamically handles target labels and protected attribute mapping.
+2.  **Model Training:** Train models directly in the browser (XGBoost, Random Forest, Logistic Regression, SVM, Decision Tree) or load pre-trained artifacts from disk.
+3.  **Auditing:** Run the fairness scanner to generate a ranked heatmap and data table of all discovered disparities.
+4.  **Reporting:** Export your findings into compliance-ready PDF and JSON governance reports.
 
-After loading data, the app lets you preprocess, train models, evaluate model quality, run a fairness audit, inspect intersectional findings, review statistical evidence, and export reports.
+## Local Installation
 
-## Tech Stack
-
-- Python
-- Streamlit
-- Pandas and NumPy
-- Scikit-learn
-- XGBoost
-- Plotly
-- SciPy and Statsmodels
-- Fairlearn and AIF360
-- ReportLab
-- Python Dotenv
-
-## Project Structure
-
-```text
-sabpf/
-|-- bias/
-|   |-- ai_assistant.py
-|   |-- detector.py
-|   |-- explainer.py
-|   |-- metrics.py
-|   |-- ranker.py
-|   `-- statistical.py
-|-- data/
-|   |-- loaders.py
-|   `-- preprocessor.py
-|-- models/
-|   |-- evaluator.py
-|   |-- trainer.py
-|   `-- saved/
-|-- reports/
-|   `-- generator.py
-|-- ui/
-|   `-- app.py
-|-- .env.example
-|-- .gitignore
-|-- project_documentation.md
-|-- README.md
-`-- requirements.txt
-```
-
-## Built-In Datasets
-
-The project includes loaders for commonly used fairness-related datasets:
-
-- Adult Income
-- COMPAS Recidivism
-- German Credit
-- Bank Marketing
-- Law School Admissions
-
-The exact protected attributes depend on the loader configuration inside the project.
-
-## Models Used
-
-The training pipeline supports multiple classification models, including:
-
-- Logistic Regression
-- Decision Tree
-- Random Forest
-- XGBoost
-- Support Vector Machine with RBF kernel
-
-Pretrained artifacts are stored in `models/saved/` when available.
-
-## Bias Metrics and Analysis
-
-The fairness engine focuses on subgroup discovery and prioritization. The project evaluates:
-
-- Demographic Parity Difference (DPD)
-- Disparate Impact Ratio (DIR)
-- Equal Opportunity Difference (EOD)
-- Statistical significance
-- Effect size
-- Confidence intervals
-- Bias Severity Score (BSS)
-
-The system also supports intersectional analysis so combinations such as race plus gender can be audited together.
-
-## Dashboard Pages
-
-The Streamlit app includes these major sections:
-
-- `Dataset Explorer`: dataset size, target balance, and protected attribute distributions.
-- `Model Training`: train or load supported models and compare ROC performance.
-- `Bias Analysis`: run subgroup audits and rank disparities by severity.
-- `Intersectional Explorer`: inspect top intersectional bias findings.
-- `Statistical Report`: review p-values, corrected p-values, and effect sizes.
-- `Gov Report Export`: generate PDF and JSON governance reports.
-- `SABPF AI Assistant`: ask project- and results-related questions using configured AI keys.
-
-## Installation
-
-### 1. Clone or download the project
-
+1. Clone this repository:
 ```bash
 git clone <your-repository-url>
 cd sabpf
 ```
 
-### 2. Create and activate a virtual environment
-
-Windows PowerShell:
-
-```powershell
+2. Set up a virtual environment:
+```bash
+# Windows
 python -m venv .venv
 .venv\Scripts\Activate.ps1
+
+# Mac/Linux
+python3 -m venv .venv
+source .venv/bin/activate
 ```
 
-### 3. Install dependencies
-
+3. Install the required dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure environment variables
-
-Create a local `.env` file in the project root using `.env.example` as a template.
-
-Example:
-
+4. (Optional) Configure API keys for the Assistant:
+Create a `.env` file in the root directory (using `.env.example` as a template) and add your keys:
 ```env
-GEMINI_API_KEY=your_key_here
 GROQ_API_KEY=your_key_here
+GEMINI_API_KEY=your_key_here
 ```
 
-The `.env` file is ignored by Git and should never be pushed to GitHub.
-
-## Running the App
-
+5. Run the application:
 ```bash
 streamlit run ui/app.py
 ```
 
-Then open the local Streamlit URL shown in the terminal, usually `http://localhost:8501`.
+## Cloud Deployment
 
-## Typical Usage Flow
+This project is fully compatible with Streamlit Community Cloud. If you deploy it remotely, ensure that you add your `GROQ_API_KEY` or `GEMINI_API_KEY` to the Streamlit Secrets Manager, as the `.env` file is intentionally ignored by git for security.
 
-1. Start the Streamlit app.
-2. Choose a built-in dataset or upload a custom CSV.
-3. Select the target label and protected attributes if using custom data.
-4. Load and preprocess the data.
-5. Train selected models or load pretrained ones.
-6. Run the comprehensive bias audit.
-7. Review subgroup rankings, charts, and statistical evidence.
-8. Export PDF or JSON governance reports if needed.
+## Technology Stack
 
-## Git and GitHub Notes
-
-This repository now includes a `.gitignore` file that excludes:
-
-- `.env`
-- virtual environments
-- Python cache files
-- generated report output
-
-That means your secret API keys will stay local and will not be uploaded when you push the project.
-
-## Recommended Files to Keep in Git
-
-- source code under `bias/`, `data/`, `models/`, `reports/`, and `ui/`
-- `requirements.txt`
-- `README.md`
-- `.env.example`
-- project documentation files
-
-## License
-
-Add your preferred license here before publishing, such as MIT, Apache-2.0, or a university/project-specific license.
-
-## Author Notes
-
-This project is well suited for:
-
-- final-year academic projects
-- responsible AI demonstrations
-- fairness auditing prototypes
-- model governance showcases
-
-If you publish this on GitHub, consider also adding screenshots of the Streamlit dashboard and a short demo video link to make the repository stronger.
+*   **Core:** Python, Pandas, NumPy, Scikit-learn, XGBoost
+*   **Fairness & Statistics:** Fairlearn, AIF360, SciPy, Statsmodels
+*   **Visualization & UI:** Streamlit, Plotly
+*   **Reporting:** ReportLab
+*   **LLM Integration:** Groq, Google GenAI

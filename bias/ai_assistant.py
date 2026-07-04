@@ -44,12 +44,18 @@ class SABPFAssistant:
         self.project_context = self._load_project_context()
 
     def _load_project_context(self) -> str:
-        """Loads the project documentation to provide context to the AI."""
-        doc_path = Path(__file__).parent.parent / "project_documentation.md"
-        if doc_path.exists():
-            with open(doc_path, "r", encoding="utf-8") as f:
-                return f.read()
-        return "SABPF is a Scalable Automated Bias Prioritization Framework."
+        """Provides context to the AI about the project methodology."""
+        return """
+        SABPF (Scalable Automated Bias Prioritization Framework) is an end-to-end ML fairness auditing tool.
+        Core workflows:
+        - Built-in fairness benchmark datasets or Custom CSV uploads.
+        - Training models (XGBoost, RandomForest, Logistic Regression, etc).
+        - Subgroup and intersectional bias discovery (DPD, DIR, EOD).
+        - Statistical validation (Z-tests, Cohen's h, FDR corrected p-values).
+        - Bias Severity Score (BSS) ranking to prioritize critical findings.
+        - Data-level (Correlation Remover) and Model-level (Threshold Optimizer) mitigation.
+        - Governance reporting.
+        """
 
     def get_response(self, user_query: str, bias_results: pd.DataFrame = None, chat_history: list = []) -> str:
         """
