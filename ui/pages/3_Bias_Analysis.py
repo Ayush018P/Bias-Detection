@@ -53,25 +53,32 @@ if st.button("Run Comprehensive Bias Audit", type="primary"):
         
         # --- SAVE TO DATABASE ---
         if not res_df.empty:
-            cr_count = len(res_df[res_df['Priority'] == 'Critical'])
-            total_bss = res_df['BSS'].sum()
-            max_bias_pct = res_df['DPD'].abs().max() * 100
-            clean_df = res_df.replace({pd.NA: None, float('nan'): None})
-            
-            db = SessionLocal()
-            audit_record = AuditHistory(
-                user_id=st.session_state["user_id"],
-                dataset_name=raw['dataset_name'],
-                model_name=model_choice,
-                critical_findings_count=cr_count,
-                total_bss=total_bss,
-                max_bias_pct=max_bias_pct,
-                results_json=clean_df.to_json(orient="records")
-            )
-            db.add(audit_record)
-            db.commit()
-            db.close()
-            st.toast("Audit saved to History!")
+            try:
+                cr_count = len(res_df[res_df['Priority'] == 'Critical'])
+                total_bss = res_df['BSS'].sum()
+                max_bias_pct = res_df['DPD'].abs().max() * 100
+                clean_df = res_df.replace({pd.NA: None, float('nan'): None})
+                
+                db = SessionLocal()
+                audit_record = AuditHistory(
+                    user_id=st.session_state["user_id"],
+                    dataset_name=raw['dataset_name'],
+                    model_name=model_choice,
+                    critical_findings_count=cr_count,
+                    total_bss=total_bss,
+                    max_bias_pct=max_bias_pct,
+                    results_json=clean_df.to_json(orient="records")
+                )
+                db.add(audit_record)
+                db.commit()
+                st.toast("Audit saved to History!")
+            except Exception as e:
+                st.warning("⚠️ Could not save audit to history database (Streamlit Cloud file-lock issue). Your analysis results below are unaffected!")
+                if 'db' in locals():
+                    db.rollback()
+            finally:
+                if 'db' in locals():
+                    db.close()
             
     st.success("Audit complete.")
 
