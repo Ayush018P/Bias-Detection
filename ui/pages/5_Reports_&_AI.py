@@ -54,6 +54,9 @@ with tab2:
     st.header("🤖 SABPF AI Assistant")
     st.markdown("Ask anything about the project methodology, your current dataset, or any problems you're facing.")
 
+    from dotenv import load_dotenv
+    load_dotenv()
+    
     gemini_key = os.getenv("GEMINI_API_KEY", "")
     groq_key = os.getenv("GROQ_API_KEY", "")
     
