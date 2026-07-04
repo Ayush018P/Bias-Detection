@@ -43,7 +43,7 @@ pip install -r requirements.txt
 (Optional) Configure API keys for the Assistant: Create a .env file in the root directory (using .env.example as a template) and add your keys:
 env
 GROQ_API_KEY=your_key_here
-GEMINI_API_KEY=your_key_here
+
 Run the application:
 bash
 streamlit run ui/app.py
