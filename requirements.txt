@@ -23,3 +23,4 @@ python-multipart
 sqlalchemy
 bcrypt
 groq
+tabulate
