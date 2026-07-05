@@ -41,13 +41,13 @@ def render_sidebar():
             target_unique = df_temp[target_col].nunique()
             if target_unique > 2:
                 invalid_target = True
-                st.error(f"❌ **Invalid Target Label:** `{target_col}` has {target_unique} unique values. This tool REQUIRES a binary outcome (exactly 2 unique values, like Yes/No or 1/0). You cannot proceed with this column.")
+                st.error(f"**Invalid Target Label:** `{target_col}` has {target_unique} unique values. This tool REQUIRES a binary outcome (exactly 2 unique values, like Yes/No or 1/0). You cannot proceed with this column.")
                 
             # Check Protected Attributes
             for p_col in prot_cols:
                 p_unique = df_temp[p_col].nunique()
                 if p_unique > 50:
-                    st.warning(f"⚠️ **Protected Attribute Warning:** `{p_col}` has {p_unique} unique values. Protected attributes must be categorical (e.g., Race, Gender, City). Continuous numbers like Prices or IDs will cause the bias detector to find 0 subgroups.")
+                    st.warning(f"**Protected Attribute Warning:** `{p_col}` has {p_unique} unique values. Protected attributes must be categorical (e.g., Race, Gender, City). Continuous numbers like Prices or IDs will cause the bias detector to find 0 subgroups.")
                      
         # Action hooks
         btn_disabled = is_custom and (uploaded_file is None or not target_col or not prot_cols or invalid_target)
