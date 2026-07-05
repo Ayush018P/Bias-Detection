@@ -19,114 +19,94 @@ if not st.session_state.get("authenticated"):
 
 render_sidebar()
 
-st.header("🕵️‍♂️ What-If Simulator (Counterfactual Analysis)")
-st.markdown("Prove bias by selecting a real applicant and changing their demographics. If changing a protected attribute (like Race or Gender) changes the AI's decision, you have proven individual bias.")
+st.header("🔮 What-If Simulator")
+st.markdown("Instantly test how your model reacts to individual profiles. Flip a protected attribute (like Gender or Race) to see if the AI changes its mind!")
 
 if "data" not in st.session_state or not st.session_state.data:
     st.warning("Please load a dataset from the sidebar to begin.")
     st.stop()
 
 if 'models' not in st.session_state or not st.session_state.models:
-    st.warning("Train models first in the 'Model Training' tab.")
+    st.warning("Please train at least one model in the 'Model Training' tab first.")
     st.stop()
 
 raw = st.session_state.data
 X_tr, X_te, y_tr, y_te, X_proc = st.session_state.pp_data
 
-# Ensure we have protected columns
-if not raw['protected_cols']:
-    st.error("No protected attributes selected when dataset was loaded.")
-    st.stop()
-
-# 1. Select a Model
-model_choice = st.selectbox("Active AI Model", list(st.session_state.models.keys()))
+model_choice = st.selectbox("Select Model to Test", list(st.session_state.models.keys()))
 model = st.session_state.models[model_choice]
 
 st.divider()
 
-# 2. Select an Applicant
-X_te_raw = raw['X'].loc[X_te.index]
-applicant_indices = list(range(len(X_te_raw)))
-
-# Let user pick an applicant by integer index
-selected_idx = st.number_input("Select an Applicant (Index 0 to {})".format(len(applicant_indices)-1), min_value=0, max_value=len(applicant_indices)-1, value=0)
-
-# Extract raw and preprocessed data for this applicant
-real_idx = X_te.index[selected_idx]
-raw_applicant = X_te_raw.loc[real_idx]
-num_applicant = X_te.loc[real_idx]
-
-# Run original prediction
-orig_pred = model.predict([num_applicant])[0]
-orig_prob = None
-if hasattr(model, "predict_proba"):
-    orig_prob = model.predict_proba([num_applicant])[0][1]
-
-# Visual outcome mapper
-def outcome_badge(pred_val):
-    if pred_val == 1:
-        return "✅ **Positive Outcome** (1)"
-    return "❌ **Negative Outcome** (0)"
-
-# 3. Display Profile Card
-st.subheader("👤 Applicant Profile")
-col1, col2 = st.columns([2, 1])
+col1, col2 = st.columns([1, 1])
 
 with col1:
-    with st.expander("View Full Raw Profile", expanded=True):
-        st.dataframe(pd.DataFrame(raw_applicant).T, use_container_width=True)
+    st.subheader("👤 Profile Builder")
+    st.markdown("Enter the details of a hypothetical person.")
+    
+    user_inputs = {}
+    
+    # We build the form dynamically based on the raw dataset
+    with st.form("what_if_form"):
+        for col in raw['X'].columns:
+            if pd.api.types.is_numeric_dtype(raw['X'][col]):
+                # Numerical input
+                min_val = float(raw['X'][col].min())
+                max_val = float(raw['X'][col].max())
+                mean_val = float(raw['X'][col].median())
+                user_inputs[col] = st.number_input(f"{col} (Range: {min_val:.1f} - {max_val:.1f})", value=mean_val)
+            else:
+                # Categorical input
+                unique_options = raw['X'][col].dropna().unique().tolist()
+                user_inputs[col] = st.selectbox(f"{col}", unique_options)
+                
+        submit = st.form_submit_button("Run Prediction", type="primary", use_container_width=True)
 
 with col2:
-    st.info("### Original AI Decision")
-    st.markdown(outcome_badge(orig_pred))
-    if orig_prob is not None:
-         st.caption(f"Confidence (Probability of 1): {orig_prob:.2f}")
-
-st.divider()
-
-# 4. Counterfactual Tweak
-st.subheader("🔄 Counterfactual Tweak")
-st.markdown("Change a protected attribute below to see if the AI changes its mind.")
-
-tweak_col = st.selectbox("Protected Attribute to change:", raw['protected_cols'])
-
-# Get unique raw values for this column from the full raw dataset
-unique_raw_vals = raw['X'][tweak_col].unique()
-
-# Dropdown for the new value
-original_val = raw_applicant[tweak_col]
-new_raw_val = st.selectbox("New Value:", unique_raw_vals, index=list(unique_raw_vals).index(original_val))
-
-if new_raw_val != original_val:
-    # We must find the numerical encoding for this new raw value
-    # We do a lookup: find any row in the FULL raw dataset that has this new value, and get its preprocessed numerical value
-    lookup_row_idx = raw['X'][raw['X'][tweak_col] == new_raw_val].index[0]
-    new_num_val = X_proc.loc[lookup_row_idx, tweak_col]
+    st.subheader("🤖 AI Decision")
     
-    # Create the counterfactual numerical row
-    cf_num_applicant = num_applicant.copy()
-    cf_num_applicant[tweak_col] = new_num_val
-    
-    # Predict
-    cf_pred = model.predict([cf_num_applicant])[0]
-    cf_prob = None
-    if hasattr(model, "predict_proba"):
-        cf_prob = model.predict_proba([cf_num_applicant])[0][1]
+    if submit:
+        # We need to map the user's raw inputs to the processed integer values the model expects
+        processed_inputs = {}
+        for col in raw['X'].columns:
+            raw_val = user_inputs[col]
+            
+            if pd.api.types.is_numeric_dtype(raw['X'][col]):
+                # Numerics go straight through
+                processed_inputs[col] = raw_val
+            else:
+                # For categoricals, find what integer it maps to in X_proc
+                try:
+                    # Find a row where the raw data equals the user's input, and grab its processed value
+                    match_idx = raw['X'][raw['X'][col] == raw_val].index[0]
+                    processed_inputs[col] = X_proc.loc[match_idx, col]
+                except IndexError:
+                    # Fallback if somehow not found (shouldn't happen with selectbox)
+                    processed_inputs[col] = -1
+                    
+        # Create a 1-row DataFrame for the model
+        input_df = pd.DataFrame([processed_inputs])
         
-    st.markdown("### The Counterfactual Reality")
-    
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown(f"**If Applicant was:** `{new_raw_val}`")
-        st.markdown(outcome_badge(cf_pred))
-        if cf_prob is not None:
-            st.caption(f"Confidence (Probability of 1): {cf_prob:.2f}")
-            
-    with c2:
-        if cf_pred != orig_pred:
-            st.error("🚨 **BIAS DETECTED!** 🚨\nThe AI completely flipped its decision purely based on this protected attribute!")
+        # Make sure column order exactly matches what the model was trained on
+        input_df = input_df[X_proc.columns]
+        
+        with st.spinner("Analyzing profile..."):
+            pred = model.predict(input_df)[0]
+            try:
+                prob = model.predict_proba(input_df)[0][1] * 100
+            except:
+                prob = None
+                
+        st.markdown("### Prediction Result")
+        if pred == 1:
+            st.success(f"### ✅ APPROVED (Positive Class)")
         else:
-            st.success("✅ **No Change.**\nThe AI's decision remained the same despite the demographic change.")
+            st.error(f"### ❌ REJECTED (Negative Class)")
             
-else:
-    st.caption("Change the value above to run a counterfactual prediction.")
+        if prob is not None:
+            st.metric("Confidence Score", f"{prob:.1f}%")
+            
+        st.divider()
+        st.markdown("### The 'What-If' Test")
+        st.markdown("Try changing one of the **Protected Attributes** on the left (e.g., Race, Gender, Age).")
+        st.markdown("*If the prediction flips from Approved to Rejected just because you changed their demographic, you have mathematically proven bias in the model!*")
