@@ -38,7 +38,8 @@ else:
             "Model": h.model_name,
             "Critical Findings": h.critical_findings_count,
             "Total Severity (BSS)": round(h.total_bss, 2),
-            "Max Bias %": f"{h.max_bias_pct:.1f}%"
+            "Max Bias %": f"{h.max_bias_pct:.1f}%",
+            "Legal Risk Level": h.legal_risk_level if h.legal_risk_level else "Unknown"
         })
         
     df = pd.DataFrame(data)

@@ -11,7 +11,7 @@ import itertools
 import logging
 from .metrics import compute_fairness_metrics, compare_metrics
 from .statistical import cohens_h, z_test_proportions, bootstrap_ci, fdr_correction
-from .ranker import calculate_bss, assign_tier
+from .ranker import calculate_bss, assign_tier, assign_legal_risk_tier
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +143,7 @@ def discover_subgroups(X_test, y_true, y_pred, model, protected_cols, threshold_
             r["p_val_corrected"] = p_corr[i]
             r["BSS"] = calculate_bss(r["DPD"], r["Effect_Size_h"], r["p_val_corrected"], r["n"] / n_total, r["DIR"])
             r["Priority"] = assign_tier(r["BSS"])
+            r["Legal_Risk"] = assign_legal_risk_tier(r["BSS"], r["DPD"], r["DIR"])
             
     df = pd.DataFrame(results)
     if not df.empty:

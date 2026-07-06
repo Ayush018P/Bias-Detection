@@ -12,6 +12,7 @@ sys.path.append(str(project_root))
 from ui.shared_sidebar import render_sidebar
 from bias.detector import discover_subgroups
 from bias.explainer import generate_eli5_summary
+from bias.ranker import evaluate_model_risk
 from db.database import SessionLocal
 from db.models import AuditHistory
 
@@ -51,6 +52,10 @@ if st.button("Run Comprehensive Bias Audit", type="primary"):
         res_df = discover_subgroups(X_te_raw, y_te, y_pred, model, raw['protected_cols'], threshold_dpd)
         st.session_state.bias_results = res_df
         
+        # Calculate overall legal risk
+        overall_risk = evaluate_model_risk(res_df)
+        st.session_state.overall_risk = overall_risk
+        
         # --- SAVE TO DATABASE ---
         if not res_df.empty:
             try:
@@ -67,6 +72,7 @@ if st.button("Run Comprehensive Bias Audit", type="primary"):
                     critical_findings_count=cr_count,
                     total_bss=total_bss,
                     max_bias_pct=max_bias_pct,
+                    legal_risk_level=overall_risk,
                     results_json=clean_df.to_json(orient="records")
                 )
                 db.add(audit_record)
@@ -84,6 +90,14 @@ if st.button("Run Comprehensive Bias Audit", type="primary"):
 
 if "bias_results" in st.session_state and st.session_state.bias_results is not None and not st.session_state.bias_results.empty:
     df_b = st.session_state.bias_results
+    overall_risk = st.session_state.get("overall_risk", "Unknown")
+
+    if overall_risk == "Non-Compliant (High Risk)":
+        st.error(f"🚨 **Overall Model Risk Status: {overall_risk}** - Violates standard compliance frameworks (e.g., EU AI Act, EEOC).")
+    elif overall_risk == "Review Required (Medium Risk)":
+        st.warning(f"⚠️ **Overall Model Risk Status: {overall_risk}** - Statistically significant disparities found.")
+    else:
+        st.success(f"✅ **Overall Model Risk Status: {overall_risk}** - Within standard acceptable legal thresholds.")
     
     c1, c2, c3, c4, c5 = st.columns(5)
     max_bias_val = df_b['DPD'].abs().max() * 100
@@ -116,7 +130,7 @@ if "bias_results" in st.session_state and st.session_state.bias_results is not N
         if col not in filtered_df.columns:
             filtered_df[col] = 0.0
             
-    display_df = filtered_df[['Rank', 'Type', 'Subgroup Name', 'n', 'DPD (%)', 'DIR', 'EOD', 'FNR_Disparity', 'PPV_Gap', 'Priority']].copy()
+    display_df = filtered_df[['Rank', 'Type', 'Subgroup Name', 'n', 'DPD (%)', 'DIR', 'EOD', 'FNR_Disparity', 'PPV_Gap', 'Priority', 'Legal_Risk']].copy()
     
     # Rename columns to Plain English with Acronyms
     display_df = display_df.rename(columns={
@@ -125,9 +139,17 @@ if "bias_results" in st.session_state and st.session_state.bias_results is not N
         "EOD": "Accuracy Bias (EOD)",
         "FNR_Disparity": "Unfair Rejection (FNR Gap)",
         "PPV_Gap": "Precision Gap (PPV Gap)",
+        "Legal_Risk": "Legal Risk Level"
     })
     
-    st.dataframe(display_df.style.map(color_tier, subset=['Priority']), use_container_width=True)
+    def color_risk(val):
+        color = 'green'
+        if val == 'Non-Compliant (High Risk)': color = 'red'
+        elif val == 'Review Required (Medium Risk)': color = 'orange'
+        elif val == 'Compliant (Low Risk)': color = 'green'
+        return f'color: {color}; font-weight: bold'
+        
+    st.dataframe(display_df.style.map(color_tier, subset=['Priority']).map(color_risk, subset=['Legal Risk Level']), use_container_width=True)
     
     st.subheader("Severity Heatmap")
     if len(df_b) > 1:

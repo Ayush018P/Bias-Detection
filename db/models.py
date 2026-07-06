@@ -31,6 +31,7 @@ class AuditHistory(Base):
     critical_findings_count = Column(Integer)
     total_bss = Column(Float)
     max_bias_pct = Column(Float)
+    legal_risk_level = Column(String)
     results_json = Column(Text) # Store the JSON payload of the results
     created_at = Column(DateTime, default=datetime.utcnow)
     

@@ -56,3 +56,29 @@ def assign_tier(bss):
         return "Medium"
     else:
         return "Low"
+
+def assign_legal_risk_tier(bss, dpd, dir_val):
+    """
+    Assigns Legal Risk Tier based on standard compliance frameworks (e.g., EU AI Act, EEOC).
+    """
+    if abs(dpd) >= 0.20 or (dir_val is not None and dir_val <= 0.8):
+        return "Non-Compliant (High Risk)"
+    elif bss >= 0.25:
+        return "Review Required (Medium Risk)"
+    else:
+        return "Compliant (Low Risk)"
+
+def evaluate_model_risk(df):
+    """
+    Evaluates the overall model risk based on the highest risk subgroup found.
+    """
+    if df.empty or 'Legal_Risk' not in df.columns:
+        return "Unknown"
+        
+    risks = df['Legal_Risk'].values
+    if "Non-Compliant (High Risk)" in risks:
+        return "Non-Compliant (High Risk)"
+    elif "Review Required (Medium Risk)" in risks:
+        return "Review Required (Medium Risk)"
+    else:
+        return "Compliant (Low Risk)"
